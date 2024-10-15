@@ -28,7 +28,7 @@ from .utils.mysqlUtils import mysqlUtils
 @api_view(['GET'])
 
 def get_recent_messages(request):
-    if check_ip_limit(request,8,3):
+    if check_ip_limit(request,8,50):
         tmp_user_id = request.GET.get('tmp_user_id')
         session_id = request.GET.get('session_id')
 
@@ -127,8 +127,8 @@ def generate_answer(user_id, session_id):
     }
     data = {
         # "model": "qwen2:7b",
-        # "model": "qwen2.5:32b-instruct-q8_0",
-        "model": "ep-20240922110810-8njsc",
+        "model": "qwen2.5:32b-instruct-q8_0",
+        # "model": "ep-20240922110810-8njsc",
         "messages": chat_history,
         "stream": True,
         "temperature": 0.1
