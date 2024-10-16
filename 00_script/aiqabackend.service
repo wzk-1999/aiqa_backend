@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=forking
 PIDFile=/home/uwsgi/aiqa/uwsgi-master.pid
-ExecStart=/bin/bash/home/uwsgi/aiqa/00_script/run_uwsgi.sh
-ExecReload=/bin/bash/home/uwsgi/aiqa/00_script/reload_uwsgi.sh
-ExecStop=/bin/bash/home/uwsgi/aiqa/00_script/stop_uwsgi.sh
+ExecStart=/bin/bash /home/uwsgi/aiqa/00_script/run_uwsgi.sh
+ExecReload=/bin/bash /home/uwsgi/aiqa/00_script/reload_uwsgi.sh
+ExecStop=/bin/bash /home/uwsgi/aiqa/00_script/stop_uwsgi.sh
 PrivateTmp=true
 
 [Install]
