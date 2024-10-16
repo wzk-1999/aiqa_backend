@@ -8,6 +8,7 @@
 *.log
 /collect_static/
 /django_site/security.py
+aiqa_syn.run.xml
 /django_site/security_dev.py
 /data/
 /ignore*
