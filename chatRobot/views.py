@@ -5,12 +5,12 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 import uuid
 import json
-import os
 import requests
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view
 
+from django_site.security import API_LINK_VALUE, QWEN2_API_KEY_VALUE
 from .models import IPStatistics
 from .utils.generate_captcha import generate_str_captcha
 from .utils.ip_related import check_ip_limit, get_client_ip
@@ -120,9 +120,9 @@ def handle_chat_sse(request):
 def generate_answer(user_id, session_id):
     chat_history = mysqlUtils.get_all_messages_for_ai(user_id, session_id)
 
-    api_url = f"{os.getenv('API_LINK')}"
+    api_url = f"{API_LINK_VALUE}"
     headers = {
-        "Authorization": f"Bearer {os.getenv('qwen2_API_KEY')}",  # Replace with your API key
+        "Authorization": f"Bearer {QWEN2_API_KEY_VALUE}",  # Replace with your API key
         "Content-Type": "application/json"
     }
     data = {

@@ -9,7 +9,6 @@ ExecStart=/bin/bash /home/uwsgi/aiqa/00_script/run_uwsgi.sh
 ExecReload=/bin/bash /home/uwsgi/aiqa/00_script/reload_uwsgi.sh
 ExecStop=/bin/bash /home/uwsgi/aiqa/00_script/stop_uwsgi.sh
 PrivateTmp=true
-EnvironmentFile=/etc/aiqa.env
 
 [Install]
 WantedBy=multi-user.target

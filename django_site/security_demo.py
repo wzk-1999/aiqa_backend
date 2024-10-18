@@ -84,3 +84,6 @@ SIMPLEUI_HOME_INFO = False
 SIMPLEUI_ANALYSIS = False
 
 CORS_ALLOWED_ORIGINS = ['前端请求socket']
+
+API_LINK_VALUE = "api link"
+QWEN2_API_KEY_VALUE = "api key"
