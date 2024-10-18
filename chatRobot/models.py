@@ -22,6 +22,7 @@ class AIQAMessage(models.Model):
         return f"Message {self.message_id} in Session {self.session_id} belongs to User {self.user_id}"
 
 class IPStatistics(models.Model):
+
     id = models.AutoField(primary_key=True)
     ip_address = models.GenericIPAddressField()
     if_captcha  = models.BooleanField(default=False)

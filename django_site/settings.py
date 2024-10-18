@@ -28,6 +28,12 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 # Application definition
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:9000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -42,7 +48,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -167,6 +173,9 @@ PASSPORT_JWT = {
     'ORG_NAME_FIELD': 'orgName',
     'TRUE_NAME_FIELD': 'name'
 }
+
+SESSION_COOKIE_AGE = 60  # 会话过期时间为 60 秒
+SESSION_SAVE_EVERY_REQUEST = True  # 每次请求都会更新会话过期时间
 
 # 安全配置导入
 from .security import *

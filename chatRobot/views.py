@@ -225,22 +225,20 @@ def check_captcha_required(request):
     else:
         return JsonResponse({'captcha_required': True})
 
-captcha_memory = {}
+
 @api_view(['GET'])
 @require_http_methods(["GET"])
 def get_captcha(request, user_id):
-    # user_id=request.path_info.split('/')[4]
     img, captcha = generate_str_captcha()
-    # 将验证码存储在内存中，使用 user_id 构造键
-    # 设置一分钟后过期
-    expiration_time = datetime.now() + timedelta(minutes=1)
 
-    captcha_memory[user_id + "_captcha"] = (captcha,expiration_time)
-    return HttpResponse(img,content_type='image/png')
-    #return HttpResponse(img)
+    # 直接将验证码字符串存储到 session
+    request.session['captcha'] = captcha
+
+    return HttpResponse(img, content_type='image/png')
+
 
 @swagger_auto_schema(
-    method='post',  # Specify the method for POST
+    method='post',
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -250,32 +248,29 @@ def get_captcha(request, user_id):
     )
 )
 @api_view(['POST'])
-
 def verify_captcha(request):
     try:
         data = json.loads(request.body)
-        user_id = data.get('user_id')
-        user_captcha = data.get('captcha_input')
-        stored_captcha_key = user_id + "_captcha"
-        if stored_captcha_key in captcha_memory:
-            stored_captcha, expiration_time = captcha_memory[stored_captcha_key]
-            if datetime.now() <= expiration_time and user_captcha == stored_captcha:
-                # 验证成功，从内存中删除该验证码
-                del captcha_memory[stored_captcha_key]
+        input_captcha = data.get('captcha_input')
 
-                user_ip=get_client_ip(request)
-                # Get the most recent record with the same IP address
-                latest_request = IPStatistics.objects.filter(ip_address=user_ip).order_by('-request_time').first()
+        # 从 session 获取存储的验证码
+        stored_captcha = request.session.get('captcha')
 
-                if latest_request:
-                    latest_request.if_captcha = True  # Update the if_captcha field to True
-                    latest_request.save()  # Save the changes
-                return JsonResponse({'message': '验证通过','result':True})
-            else:
-                del captcha_memory[stored_captcha_key]
-        return JsonResponse({'message': '输入错误或超时，请使用新验证码再次验证','result':False})
+        # 验证验证码
+        if stored_captcha and stored_captcha == input_captcha.lower():
+            user_ip = get_client_ip(request)
+            # 获取最近的 IP 请求记录
+            latest_request = IPStatistics.objects.filter(ip_address=user_ip).order_by('-request_time').first()
+
+            if latest_request:
+                latest_request.if_captcha = True  # 更新 if_captcha 字段为 True
+                latest_request.save()  # 保存修改
+            return JsonResponse({'message': '验证通过', 'result': True})
+        else:
+            return JsonResponse({'message': '验证码错误或已过期，请使用新验证码再次验证', 'result': False})
     except json.JSONDecodeError:
-        return JsonResponse({'message': '无效的请求格式','result':False}, status=400)
+        return JsonResponse({'message': '无效的请求格式', 'result': False}, status=400)
+
 
 @swagger_auto_schema(
     method='post',
