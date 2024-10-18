@@ -236,8 +236,8 @@ def get_captcha(request, user_id):
     expiration_time = datetime.now() + timedelta(minutes=1)
 
     captcha_memory[user_id + "_captcha"] = (captcha,expiration_time)
-    # return HttpResponse(img,content_type='image/png')
-    return HttpResponse(img)
+    return HttpResponse(img,content_type='image/png')
+    #return HttpResponse(img)
 
 @swagger_auto_schema(
     method='post',  # Specify the method for POST
@@ -273,7 +273,7 @@ def verify_captcha(request):
                 return JsonResponse({'message': '验证通过','result':True})
             else:
                 del captcha_memory[stored_captcha_key]
-        return JsonResponse({'message': '输入错误或超时，请重新获取后再次验证','result':False})
+        return JsonResponse({'message': '输入错误或超时，请使用新验证码再次验证','result':False})
     except json.JSONDecodeError:
         return JsonResponse({'message': '无效的请求格式','result':False}, status=400)
 
