@@ -28,7 +28,7 @@ from .utils.mysqlUtils import mysqlUtils
 @api_view(['GET'])
 
 def get_recent_messages(request):
-    if check_ip_limit(request,8,50):
+    if check_ip_limit(request,8,100):
         tmp_user_id = request.GET.get('tmp_user_id')
         session_id = request.GET.get('session_id')
 
@@ -220,7 +220,7 @@ def get_csrf_token(request):
 
 @api_view(['GET'])
 def check_captcha_required(request):
-    if check_ip_limit(request, 8, 3):
+    if check_ip_limit(request, 8, 30):
         return JsonResponse({'captcha_required': False})
     else:
         return JsonResponse({'captcha_required': True})
