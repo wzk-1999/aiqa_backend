@@ -87,3 +87,10 @@ CORS_ALLOWED_ORIGINS = ['前端请求socket']
 
 API_LINK_VALUE = "api link"
 QWEN2_API_KEY_VALUE = "api key"
+
+#development env: True, production env: False
+DEBUG = True
+
+CORS_ALLOWED_ORIGINS = [
+    "your front-end socket",
+]
