@@ -25,10 +25,6 @@ SECRET_KEY = 'django-insecure-uis6(7(zfx^f(90j@(ow0^pu2+43lc+qurv#l%tn!-lx0pz0zf
 ALLOWED_HOSTS = ["*"]
 # Application definition
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:9000",
-]
-
 CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
@@ -78,10 +74,6 @@ WSGI_APPLICATION = 'django_site.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
