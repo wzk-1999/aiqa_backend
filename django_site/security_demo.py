@@ -88,7 +88,9 @@ CORS_ALLOWED_ORIGINS = ['前端请求socket']
 API_LINK_VALUE = "api link"
 QWEN2_API_KEY_VALUE = "api key"
 
-#development env: True, production env: False
+API_LINK_GET_CONVERSATION_ID = "your api link get conversation_id"
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 CORS_ALLOWED_ORIGINS = [

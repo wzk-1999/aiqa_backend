@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta
-
+from django.contrib.messages.context_processors import messages
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -10,7 +9,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view
 
-from django_site.security import API_LINK_VALUE, QWEN2_API_KEY_VALUE
+from django_site.security import API_LINK_VALUE, QWEN2_API_KEY_VALUE, API_LINK_GET_CONVERSATION_ID
 from .models import IPStatistics
 from .utils.generate_captcha import generate_str_captcha
 from .utils.ip_related import check_ip_limit, get_client_ip
@@ -211,6 +210,150 @@ def generate_answer(user_id, session_id):
     except requests.RequestException as e:
         yield f"data: {json.dumps({'error': f'Error connecting to API: {e}'})}\n\n"
         return
+
+# 新api 开始
+
+# Synchronous view for fetching recent messages
+# Define query parameters for Swagger documentation
+@swagger_auto_schema(
+    method='get',  # Specify the method
+    manual_parameters=[
+        openapi.Parameter('tmp_user_id', openapi.IN_QUERY, description="用户id,没有就随机生成", type=openapi.TYPE_STRING),
+        openapi.Parameter('session_id', openapi.IN_QUERY, description="会话id,没有就由api生成", type=openapi.TYPE_STRING),
+    ]
+)
+@api_view(['GET'])
+
+def get_recent_messages_new(request):
+    if check_ip_limit(request,8,100):
+        tmp_user_id = request.GET.get('tmp_user_id')
+        session_id = request.GET.get('session_id')
+
+        if not tmp_user_id:
+            # Generate a new session_id if it doesn't exist
+            tmp_user_id = str(uuid.uuid4())
+            api_url = f"{API_LINK_GET_CONVERSATION_ID}?user_id={tmp_user_id}"
+            headers = {'Authorization': f'Bearer {QWEN2_API_KEY_VALUE}'}
+            response = requests.get(api_url, headers=headers)
+            if response.status_code == 200:
+                data = json.loads(response.text)
+                session_id = data.get('data', {}).get('id')
+                if not session_id:
+                    raise ValueError("Failed to obtain a valid session_id from the API.")
+            else:
+                raise ValueError(f"API request failed with status code {response.status_code}.")
+            recent_messages = []
+
+
+        else:
+                if not session_id:
+                    api_url = f"{API_LINK_GET_CONVERSATION_ID}?user_id={tmp_user_id}"
+                    headers = {'Authorization': f'Bearer {QWEN2_API_KEY_VALUE}'}
+                    response = requests.get(api_url, headers=headers)
+                    if response.status_code == 200:
+                        data = json.loads(response.text)
+                        session_id = data.get('data', {}).get('id')
+                        if not session_id:
+                            raise ValueError("Failed to obtain a valid session_id from the API.")
+                    else:
+                        raise ValueError(f"API request failed with status code {response.status_code}.")
+                    recent_messages = []
+                else:
+                    # Fetch the recent messages from MySQL synchronously
+                    recent_messages = mysqlUtils.get_messages(tmp_user_id, session_id)
+
+        return JsonResponse({
+            'tmp_user_id': tmp_user_id,
+            'session_id': session_id,
+            'messages': recent_messages
+        })
+    else:
+        return JsonResponse({
+            'captcha': "require captcha"
+        })
+
+
+@swagger_auto_schema(
+    method='post',  # Specify the method for POST
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'question': openapi.Schema(type=openapi.TYPE_STRING, description='用户问题'),
+            'session_id': openapi.Schema(type=openapi.TYPE_STRING, description='会话 ID'),
+            'tmp_user_id': openapi.Schema(type=openapi.TYPE_STRING, description='用户 id'),
+            'message_id': openapi.Schema(type=openapi.TYPE_STRING, description='前端生成的消息 id'),
+        }
+    )
+)
+@api_view(['POST'])
+def handle_chat_sse_new(request):
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+
+    question = body.get('question')
+    session_id = body.get('session_id')
+    tmp_user_id = body.get('tmp_user_id')
+    message_id = body.get('message_id')
+
+    if not tmp_user_id:
+        return JsonResponse({'error': 'user ID is required'}, status=400)
+    if not session_id:
+        return JsonResponse({'error': 'Session ID is required'}, status=400)
+
+    # Store the user's question synchronously
+    mysqlUtils.store_message(tmp_user_id, session_id, message_id, question, 'user')
+
+    # Generate the answer from the external API
+    return StreamingHttpResponse(generate_answer_new(tmp_user_id, session_id), content_type='text/event-stream')
+
+def generate_answer_new(user_id, session_id):
+    chat_history = mysqlUtils.get_all_messages_for_ai(user_id, session_id)
+
+    api_url = f"{API_LINK_VALUE}"
+    headers = {
+        "Authorization": f"Bearer {QWEN2_API_KEY_VALUE}",  # Replace with your API key
+    }
+    data = {
+        "conversation_id": session_id,
+        "messages": chat_history,
+    }
+
+    try:
+        response = requests.post(api_url, headers=headers, json=data, stream=True)
+        if response.status_code == 200:
+            answer = ""
+            messages_id = str(uuid.uuid4())
+            for line in response.text.split('\n\ndata:'):
+                    try:
+                        line_data = json.loads(line)
+                        if line_data.get('retcode') == 0:
+                            data_content = line_data['data']
+                            if isinstance(data_content, bool) and data_content:
+                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
+                                yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
+                                return
+                            elif isinstance(data_content, dict) and 'answer' in data_content:
+                                answer = data_content['answer']
+                                try:
+                                    yield f"data: {json.dumps({'message': answer})}\n\n"
+                                except:
+                                    print("ConnectionError, didn't send message" + session_id)
+                                    mysqlUtils.store_message(user_id, session_id, messages_id, answer,'assistant')
+                    except json.JSONDecodeError:
+                        continue
+        else:
+            yield f"data: {json.dumps({'error': 'Failed to get a valid response.'})}\n\n"
+            return
+    except requests.RequestException as e:
+        # In case of connection error, store the message if there is any accumulated content
+        if answer:
+            mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
+        yield f"data: {json.dumps({'error': f'Error connecting to API: {e}'})}\n\n"
+        return
+
+# 新api 结束
 
 
 @api_view(['GET'])
