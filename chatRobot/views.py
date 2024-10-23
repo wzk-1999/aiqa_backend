@@ -325,9 +325,12 @@ def generate_answer_new(user_id, session_id):
         if response.status_code == 200:
             answer = ""
             messages_id = str(uuid.uuid4())
-            for line in response.text.split('\n\ndata:'):
+            for chunk in response.iter_lines():
+                if chunk:
                     try:
-                        line_data = json.loads(line)
+                        if chunk.startswith(b'data:'):
+                            chunk = chunk[len(b'data:'):].decode('utf-8')
+                        line_data = json.loads(chunk)
                         if line_data.get('retcode') == 0:
                             data_content = line_data['data']
                             if isinstance(data_content, bool) and data_content:
@@ -336,11 +339,7 @@ def generate_answer_new(user_id, session_id):
                                 return
                             elif isinstance(data_content, dict) and 'answer' in data_content:
                                 answer = data_content['answer']
-                                try:
-                                    yield f"data: {json.dumps({'message': answer})}\n\n"
-                                except:
-                                    print("ConnectionError, didn't send message" + session_id)
-                                    mysqlUtils.store_message(user_id, session_id, messages_id, answer,'assistant')
+                                yield f"data: {json.dumps({'message': answer})}\n\n"
                     except json.JSONDecodeError:
                         continue
         else:
