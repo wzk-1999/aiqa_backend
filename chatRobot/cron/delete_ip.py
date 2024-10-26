@@ -29,7 +29,7 @@ def delete_ip_records():
     IPStatistics.objects.filter(request_time__lt=three_days_ago).delete()
     )
 
-    current_time = timezone.now().strftime('%Y%m%d %H:%M:%S')
+    current_time = timezone.localtime(timezone.now()).strftime('%Y%m%d %H:%M:%S')
     print("-------------------------------------------------------------------")
     # 打印删除了多少行以及时间戳
     print(f"[{current_time}] ip access history deleted {deleted_count} records.")
