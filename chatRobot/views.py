@@ -317,7 +317,7 @@ def generate_answer_new(user_id, session_id):
     data = {
         "conversation_id": session_id,
         "messages": chat_history,
-        # "quote": True
+        "quote": True
     }
 
     try:
