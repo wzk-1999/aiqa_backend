@@ -19,7 +19,7 @@ from chatRobot.models import AIQAMessage
 
 
 def delete_chat_history():
-    three_days_ago = timezone.now() - timedelta(days=3)
+    three_days_ago = timezone.localtime(timezone.now()) - timedelta(days=3)
     # 删除旧记录并获取删除的对象数量
     deleted_count, _ = (
     AIQAMessage.objects.filter(create_time__lt=three_days_ago).delete()
