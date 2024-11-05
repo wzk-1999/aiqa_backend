@@ -1,3 +1,5 @@
+import re
+
 from django.http import JsonResponse, StreamingHttpResponse, HttpResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -333,10 +335,26 @@ def generate_answer_new(user_id, session_id):
                         line_data = json.loads(chunk)
                         if line_data.get('retcode') == 0:
                             data_content = line_data['data']
-                            if isinstance(data_content, bool) and data_content:
-                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
+                            if isinstance(data_content, dict) and 'answer' in data_content and data_content['reference']:
+                                answer = data_content['answer']
+                                # 提取answer里##0$$这种格式的信息并处理
+                                processed_info = []
+                                pattern = re.compile(r'##(\d+)\$\$')
+                                matches = pattern.findall(answer)
+                                for index_str in matches:
+                                    try:
+                                        index = int(index_str)
+                                        content_with_weight = data_content['reference']['chunks'][index]['content_with_weight']
+                                        # print(index)
+                                        # print(content_with_weight)
+                                        processed_info.append(content_with_weight)
+                                    except (ValueError, KeyError):
+                                        continue
+                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant',processed_info)
+                                yield f"data: {json.dumps({'message': answer, 'quote': processed_info})}\n\n"
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
                                 return
+
                             elif isinstance(data_content, dict) and 'answer' in data_content:
                                 answer = data_content['answer']
                                 yield f"data: {json.dumps({'message': answer})}\n\n"

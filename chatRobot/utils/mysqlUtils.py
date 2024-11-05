@@ -1,3 +1,5 @@
+import json
+
 from django.db import transaction
 from django.db.models import Q
 
@@ -11,13 +13,21 @@ class mysqlUtils:
         # Query the most recent messages for the given user and session, ordered by create_time in descending order
         messages = AIQAMessage.objects.filter(user_id=user_id, session_id=session_id) \
             .order_by('-create_time')[:count] \
-            .values('user_id', 'session_id', 'message_id', 'type', 'content', 'is_thumb_up', 'is_thumb_down', 'reflect_reason')
+            .values('user_id', 'session_id', 'message_id', 'type', 'content', 'is_thumb_up', 'is_thumb_down', 'reflect_reason','quotes')
 
-        # Convert the queryset to a list of dictionaries and return it
-        return list(messages)[::-1]
+        # Convert the queryset to a list of dictionaries and handle the quotes field to restore it to an array
+        result = []
+        for message in messages:
+            message_dict = dict(message)
+            if message_dict['quotes']:
+                message_dict['quotes'] = message_dict['quotes'].split('|||')
+            result.append(message_dict)
+
+        # Reverse the list to match the original order (since we sliced it in descending order)
+        return result[::-1]
 
     @staticmethod
-    def store_message(user_id, session_id,message_id, content, message_type):
+    def store_message(user_id, session_id,message_id, content, message_type,quotes=None):
         # 检查数据库中是否已存在具有相同 user_id, session_id, message_id 的消息
         existing_message = AIQAMessage.objects.filter(
             Q(user_id=user_id) &
@@ -29,12 +39,19 @@ class mysqlUtils:
             # 如果存在，直接返回 message_id
             return existing_message.message_id
             # Create and save the message using the provided parameters
+
+        if quotes is not None and isinstance(quotes, list):
+            quotes_str = "|||".join(quotes)
+        else:
+            quotes_str = quotes
+
         message = AIQAMessage(
             user_id=user_id,
             session_id=session_id,
             message_id=message_id,
             type=message_type,
-            content=content
+            content=content,
+            quotes = quotes_str
         )
 
         # Save the message in the database

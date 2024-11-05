@@ -1,12 +1,11 @@
 from django.db import models
-from django.utils import timezone
-
 
 # Create your models here.
 class AIQAMessage(models.Model):
     user_id = models.CharField(max_length=100)
     session_id = models.CharField(max_length=100)
     message_id = models.CharField(max_length=100)
+    quotes = models.TextField(null=True)
     type = models.CharField(max_length=50)
     content = models.TextField()
     is_thumb_up = models.BooleanField(default=False)
