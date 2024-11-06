@@ -339,19 +339,20 @@ def generate_answer_new(user_id, session_id):
                                 answer = data_content['answer']
                                 # 提取answer里##0$$这种格式的信息并处理
                                 processed_info = []
+                                quote_files=[]
                                 pattern = re.compile(r'##(\d+)\$\$')
                                 matches = pattern.findall(answer)
                                 for index_str in matches:
                                     try:
                                         index = int(index_str)
                                         content_with_weight = data_content['reference']['chunks'][index]['content_with_weight']
-                                        # print(index)
-                                        # print(content_with_weight)
+                                        quote_file = data_content['reference']['chunks'][index]['doc_name'].split("/")[-1].split(".")[0]
                                         processed_info.append(content_with_weight)
+                                        quote_files.append(quote_file)
                                     except (ValueError, KeyError):
                                         continue
-                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant',processed_info)
-                                yield f"data: {json.dumps({'message': answer, 'quote': processed_info})}\n\n"
+                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant',processed_info,quote_files)
+                                yield f"data: {json.dumps({'message': answer, 'quote': processed_info,'quote_file':quote_files})}\n\n"
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
                                 return
 

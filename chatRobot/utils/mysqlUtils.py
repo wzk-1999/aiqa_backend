@@ -13,7 +13,7 @@ class mysqlUtils:
         # Query the most recent messages for the given user and session, ordered by create_time in descending order
         messages = AIQAMessage.objects.filter(user_id=user_id, session_id=session_id) \
             .order_by('-create_time')[:count] \
-            .values('user_id', 'session_id', 'message_id', 'type', 'content', 'is_thumb_up', 'is_thumb_down', 'reflect_reason','quotes')
+            .values('user_id', 'session_id', 'message_id', 'type', 'content', 'is_thumb_up', 'is_thumb_down', 'reflect_reason','quotes','quote_file')
 
         # Convert the queryset to a list of dictionaries and handle the quotes field to restore it to an array
         result = []
@@ -21,13 +21,15 @@ class mysqlUtils:
             message_dict = dict(message)
             if message_dict['quotes']:
                 message_dict['quotes'] = message_dict['quotes'].split('|||')
+            if message_dict['quote_file']:
+                message_dict['quote_file'] = message_dict['quote_file'].split('|||')
             result.append(message_dict)
 
         # Reverse the list to match the original order (since we sliced it in descending order)
         return result[::-1]
 
     @staticmethod
-    def store_message(user_id, session_id,message_id, content, message_type,quotes=None):
+    def store_message(user_id, session_id,message_id, content, message_type,quotes=None,quotes_file=None):
         # 检查数据库中是否已存在具有相同 user_id, session_id, message_id 的消息
         existing_message = AIQAMessage.objects.filter(
             Q(user_id=user_id) &
@@ -45,13 +47,19 @@ class mysqlUtils:
         else:
             quotes_str = quotes
 
+        if quotes_file is not None and isinstance(quotes_file, list):
+            quotes_file_str = "|||".join(quotes_file)
+        else:
+            quotes_file_str = quotes_file
+
         message = AIQAMessage(
             user_id=user_id,
             session_id=session_id,
             message_id=message_id,
             type=message_type,
             content=content,
-            quotes = quotes_str
+            quotes = quotes_str,
+            quote_file=quotes_file_str
         )
 
         # Save the message in the database
