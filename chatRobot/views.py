@@ -359,6 +359,10 @@ def generate_answer_new(user_id, session_id):
                             elif isinstance(data_content, dict) and 'answer' in data_content:
                                 answer = data_content['answer']
                                 yield f"data: {json.dumps({'message': answer})}\n\n"
+                            elif isinstance(data_content, bool) and data_content:
+                                mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
+                                yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
+                                return
                     except json.JSONDecodeError:
                         continue
         else:

@@ -16,7 +16,7 @@ DATABASES = {
         'USER': 'xxx',  # 数据库用户名
         'PASSWORD': 'xxx',  # 密码
         'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES';",  # SET foreign_key_checks = 0;
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES';SET time_zone = '+08:00';",  # SET foreign_key_checks = 0;
             'charset': 'utf8mb4'
         },
         'TEST': {
