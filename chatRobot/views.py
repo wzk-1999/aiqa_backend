@@ -10,7 +10,8 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view
 
-from django_site.security import API_LINK_VALUE, QWEN2_API_KEY_VALUE, API_LINK_GET_CONVERSATION_ID
+from django_site.security import API_LINK_VALUE, QWEN2_API_KEY_VALUE, API_LINK_GET_CONVERSATION_ID, \
+    API_RELATED_QUESTION_LINK, RELATED_QUESTIONS_KNOWLEDGE_BASE_ID
 from .models import IPStatistics
 from .utils.generate_captcha import generate_str_captcha
 from .utils.ip_related import check_ip_limit, get_client_ip
@@ -307,9 +308,9 @@ def handle_chat_sse_new(request):
     mysqlUtils.store_message(tmp_user_id, session_id, message_id, question, 'user')
 
     # Generate the answer from the external API
-    return StreamingHttpResponse(generate_answer_new(tmp_user_id, session_id), content_type='text/event-stream')
+    return StreamingHttpResponse(generate_answer_new(tmp_user_id, session_id,question), content_type='text/event-stream')
 
-def generate_answer_new(user_id, session_id):
+def generate_answer_new(user_id, session_id,question):
     chat_history = mysqlUtils.get_all_messages_for_ai(user_id, session_id)
 
     api_url = f"{API_LINK_VALUE}"
@@ -354,14 +355,24 @@ def generate_answer_new(user_id, session_id):
                                 mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant',processed_info,quote_files)
                                 yield f"data: {json.dumps({'message': answer, 'quote': processed_info,'quote_file':quote_files})}\n\n"
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
-                                return
 
+                                related_questions= generate_related_questions(question)
+                                if 'error' in related_questions:
+                                    yield f"data: {json.dumps({'error': related_questions['error']})}\n\n"
+                                else:
+                                    yield f"data: {json.dumps({'related_questions': related_questions})}\n\n"
+                                return
                             elif isinstance(data_content, dict) and 'answer' in data_content:
                                 answer = data_content['answer']
                                 yield f"data: {json.dumps({'message': answer})}\n\n"
                             elif isinstance(data_content, bool) and data_content:
                                 mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
+                                related_questions = generate_related_questions(question)
+                                if 'error' in related_questions:
+                                    yield f"data: {json.dumps({'error': related_questions['error']})}\n\n"
+                                else:
+                                    yield f"data: {json.dumps({'related_questions': related_questions})}\n\n"
                                 return
                     except json.JSONDecodeError:
                         continue
@@ -374,6 +385,28 @@ def generate_answer_new(user_id, session_id):
             mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
         yield f"data: {json.dumps({'error': f'Error connecting to API: {e}'})}\n\n"
         return
+
+def generate_related_questions(question, page=1, size=3, similarity_threshold=0.1):
+    data = {
+        "question": question,
+        "kb_id": RELATED_QUESTIONS_KNOWLEDGE_BASE_ID,  # 相近问题的来源知识库id
+        "page": page,  # 页面默认设为1
+        "size": size,  # 默认返回最相近的3个问题
+        "similarity_threshold": similarity_threshold
+    }
+    try:
+        response = requests.post(API_RELATED_QUESTION_LINK, json=data)
+        if response.status_code == 200:
+            result_json = response.json()
+            chunks = result_json["data"]["chunks"]
+            related_questions = []
+            for chunk in chunks:
+                if "content_with_weight" in chunk:
+                    file_name = chunk["content_with_weight"].split("/")[-1].split(".")[0]
+                    related_questions.append(file_name)
+            return related_questions
+    except Exception as e:
+        return {'error': '获取相关问题请求失败'}
 
 # 新api 结束
 
