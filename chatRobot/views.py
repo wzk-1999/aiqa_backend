@@ -356,7 +356,7 @@ def generate_answer_new(user_id, session_id,question):
                                 yield f"data: {json.dumps({'message': answer, 'quote': processed_info,'quote_file':quote_files})}\n\n"
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
 
-                                related_questions= generate_related_questions(question)
+                                related_questions= generate_related_questions(question,quote_files=quote_files)
                                 if 'error' in related_questions:
                                     yield f"data: {json.dumps({'error': related_questions['error']})}\n\n"
                                 else:
@@ -368,7 +368,7 @@ def generate_answer_new(user_id, session_id,question):
                             elif isinstance(data_content, bool) and data_content:
                                 mysqlUtils.store_message(user_id, session_id, messages_id, answer, 'assistant')
                                 yield f"data: {json.dumps({'messages_id': messages_id})}\n\n"
-                                related_questions = generate_related_questions(question)
+                                related_questions = generate_related_questions(question,quote_files=[])
                                 if 'error' in related_questions:
                                     yield f"data: {json.dumps({'error': related_questions['error']})}\n\n"
                                 else:
@@ -386,12 +386,12 @@ def generate_answer_new(user_id, session_id,question):
         yield f"data: {json.dumps({'error': f'Error connecting to API: {e}'})}\n\n"
         return
 
-def generate_related_questions(question, page=1, size=3, similarity_threshold=0.1):
+def generate_related_questions(question,quote_files, page=1, size=3, similarity_threshold=0.1):
     data = {
         "question": question,
         "kb_id": RELATED_QUESTIONS_KNOWLEDGE_BASE_ID,  # 相近问题的来源知识库id
         "page": page,  # 页面默认设为1
-        "size": size,  # 默认返回最相近的3个问题
+        "size": size+len(quote_files),  # 去掉已经引用的文档后再最多返回最相近的3个问题
         "similarity_threshold": similarity_threshold
     }
     try:
@@ -403,7 +403,8 @@ def generate_related_questions(question, page=1, size=3, similarity_threshold=0.
             for chunk in chunks:
                 if "content_with_weight" in chunk:
                     file_name = chunk["content_with_weight"].split("/")[-1].split(".")[0]
-                    related_questions.append(file_name)
+                    if file_name not in quote_files:
+                        related_questions.append(file_name)
             return related_questions
     except Exception as e:
         return {'error': '获取相关问题请求失败'}
